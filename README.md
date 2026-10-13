@@ -1,23 +1,18 @@
-# Wizards & Warriors (GOG) – mouse click fix for Wine / Proton
+# Wizards & Warriors (GOG) -- mouse click fix for Wine / Proton
 
-On Linux (Wine, Proton, Heroic, Lutris, Steam), the GOG release of *Wizards & Warriors* (2000, Heuristic Park) shows its main menu and the game's hand cursor follows the mouse, but **clicks never do anything**. This fixes that.
+On Linux (Wine, Proton, Heroic, Lutris, Steam), the GOG release of *Wizards & Warriors* (2000, Heuristic Park) shows its main menu, but clicks never do anything. This fixes that.
 
 ## Cause
 
-`deep6.exe` reads the mouse buttons by polling `GetAsyncKeyState(VK_LBUTTON)`. It counts a click only when the **least significant bit** is set. On Windows, that bit means "pressed since the last call". Wine only ever returns `0x8000` (button currently down) and never sets that bit, so the game sees the button held but never sees a click.
-
-This has nothing to do with Wayland/XWayland, the window manager, the virtual desktop or the DirectDraw wrapper. All of those were tested and none of them change it.
-
-Note: the main menu has no hover highlight and ignores the keyboard, even on Windows. That's normal.
+`deep6.exe` reads the mouse buttons by polling `GetAsyncKeyState(VK_LBUTTON)`. It counts a click only when the least significant bit is set. On Windows, that bit means "pressed since the last call". Wine only ever returns `0x8000` (button currently down) and never sets that bit, so the game sees the button held but never sees a click.
 
 ## How the fix works
 
-`binkw32.dll` (the Bink video library) ships with the game, and the game always loads it at startup. The fix replaces it with a small proxy:
+`binkw32.dll` (the Bink video library) is replaced with a small proxy:
 
 - all 80 Bink exports are forwarded unchanged to the original, renamed to `binkw32_orig.dll`;
 - on load, the proxy patches `user32!GetAsyncKeyState` with a wrapper around `win32u!NtUserGetAsyncKeyState`. The wrapper sets bit 0 the first time a key or button is polled after it goes down, which matches Windows behaviour.
 
-No Wine/Proton build changes, no DLL overrides and no registry edits are needed. Wine loads a game's own DLLs from the game directory by default.
 
 ## Files
 
@@ -57,10 +52,7 @@ Wizards and Warriors/
 
 ## Configuration
 
-Nothing is required. Tested with **GE-Proton10-34** through Heroic (umu). Optional:
-
-- **DirectDraw:** both Wine's built-in ddraw (`WINEDLLOVERRIDES=ddraw=b`) and the D3D9-based `ddraw.dll` wrapper that GOG ships (`ddraw=n,b`) work. The game renders at 640×480, and Wine scales it to the window.
-- **Heroic:** game settings → Advanced → Environment variables, if you want to set the ddraw override above.
+Nothing is required. Tested with **GE-Proton10-34** through Heroic (umu). 
 
 ## Build
 
@@ -74,7 +66,7 @@ Requires `clang`, `lld` (`lld-link`) and `llvm-dlltool`. MinGW isn't needed.
 ## Notes
 
 - The original `binkw32.dll` (RAD Game Tools) isn't included. It comes from your own copy of the game.
-- The hook is harmless on Windows (10+, where `win32u.dll` exists). It's only needed under Wine.
+
 
 ## License
 
